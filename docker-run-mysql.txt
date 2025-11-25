@@ -1,0 +1,19 @@
+docker run \
+ -e MYSQL_ROOT_PASSWORD=sergey \
+ -e MYSQL_DATABASE=photo_app \
+ -e MYSQL_USER=sergey \
+ -e MYSQL_PASSWORD=sergey \
+ -p 3306:3306 \
+ --network host \
+mysql:latest
+
+
+docker run ^
+ -e MYSQL_ROOT_PASSWORD=sergey ^
+ -e MYSQL_DATABASE=photo_app ^
+ -e MYSQL_USER=sergey ^
+ -e MYSQL_PASSWORD=sergey ^
+ --network host ^
+ mysql:latest
+ 
+docker run -e MYSQL_ROOT_PASSWORD=sergey -e MYSQL_DATABASE=photo_app -e MYSQL_USER=sergey -e MYSQL_PASSWORD=sergey --network host mysql:latest

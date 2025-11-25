@@ -1,0 +1,19 @@
+-e SERVER_PORT=8082
+-e SPRING_PROFILES_ACTIVE=prod
+-e LOGGING_LEVEL_ROOT=DEBUG
+-e SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/photo_app
+-e SPRING_DATASOURCE_USERNAME=sergey
+-e SPRING_DATASOURCE_PASSWORD=12345678
+-e SPRING_JPA_HIBERNATE_DDL_AUTO=update
+-e SPRING_JPA_SHOW_SQL=true
+-e SPRING_APPLICATION_NAME=users-ws
+-e EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka:8761/eureka
+-e MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE=*
+
+Любые переменные, которые ты в application.properties определил как:
+
+security.token.secret=VerySecretKey
+
+В Docker они становятся:
+
+SECURITY_TOKEN_SECRET=VerySecretKey
