@@ -1,0 +1,6 @@
+docker run --name users-ws \
+ -e server.port=8081 -p 8081:8081 \
+ -e spring.datasource.username=sergey \
+ -e spring.datasource.password=sergey \
+ -e spring.datasource.url=jdbc:mysql://172.17.0.2:3306/photo_app \
+ users-ws:2.0.1 --spring.profiles.active=prod
