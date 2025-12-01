@@ -1,0 +1,202 @@
+docker --help
+docker ps --help
+docker ps
+docker ps -a
+docker ps --all
+docker container ls -a : new version of docker ps -a
+docker container ls --all
+
+
+docker run : create and start new container from image
+docker run -p 8082:8082 users-ws:2.0.0
+docker run -p 8082:8082 --name users-ws users-ws:2.0.0 : create container with name
+docker run --name users-ws -p 8082:8082 users-ws:2.0.0 --spring.profiles.active=test
+docker run -p 8082:8082 -d --name users-ws users-ws:2.0.0 : detached mode. IF YOU RUN in detached mode, it starts in the same mode
+docker run --name users-ws -e SPRING_PROFILES_ACTIVE=test -p 8082:8082 users-ws:2.0.1
+docker run --name users-ws --env SPRING_PROFILES_ACTIVE=test -p 8082:8082 users-ws:2.0.1
+docker run --name users-ws -e SERVER_PORT=8081 -p 8081:8081 -e SPRING_PROFILES_ACTIVE=test users-ws:2.0.1
+
+----------------- PASS ENVIRONMENT VARIABLES FROM FILE : create in the same folder envinroment.env -----------
+docker run --name users-ws -p 8081:8081 --env-file environment.env users-ws:2.0.1
+--------------------------------------------------------------------------------------------------------------
+
+docker start <container-id> or <container-name> : start an existing or stopped container
+docker start -a users-ws : start container in attached mode
+docker stop <container-id> or <container-name>
+docker rm <container-id> or <container-name>
+docker rm -f $(docker ps -aq) : remove ALL containes
+
+docker logs <container-id> or <container-name> : show container logs
+docker logs -f <container-id> or <container-name> : live container logs
+
+----------------------- Filtering container ------------------------
+docker ps -a --filter="ancestor=users-ws:2.0.0" --filter "status=running"  : поиск запущенного контейнера по image
+docker ps -a --filter="ancestor=users-ws:2.0.0" --filter "status=exited"   : поиск остановленного контейнера по image
+docker ps -a --filter="ancestor=users-ws:2.0.0" --filter "status=exited" -q | xargs docker rm : удалить по фильтру (Linux/bash command)
+docker ps -a --filter="ancestor=users-ws:2.0.0" --filter="status=exited" -q | ForEach-Object { docker rm $_ } : удалить по фильтру (powerShell-command)
+docker ps -a --filter="ancestor=<image-name/id>"
+--------------------------------------------------------------------
+docker images
+docker rmi <container-id>
+docker prune -a : remove all unused images without container
+
+docker build . : build image from Dockerfile
+docker build -t users-ws:latest .
+docker build -f Dockerfile-multi-stage -t users-ws:2.0.0 .
+docker build -f Dockerfile-multi-stage -t users-ws:2.0.0 --build-arg BASE_IMAGE=eclipse-temurin:21-jdk-alpine .
+
+------------- COMMANDS inside container --------------------------------------------------------------
+docker exec -it <container-name> bash
+------------------------------------------INSPECT CONTAINER ------------------------------------------
+docker inspect <container-name> | less : open in less editor (| more - for Windows)
+
+
+
+-------------------- To pass ARG from Dockerfile (ARG BASE_IMAGE=amazoncorretto:21-alpine-jdk)
+docker build --build-arg JAR_FILE=target/users-service-2.0.1.jar \
+ --build-arg APP_VERSION=2.0.1 \
+ --build-arg BASE_IMAGE=amazoncorretto:21-alpine-jdk \
+ -t users-service-2.0.1 .
+ 
+
+------------------------------- VOLUMES ----------------------------------------------------------
+docker volume ls
+docker volume inspect <volume-name>
+To get access to anonymous volume you should create temporary container and mount the volume to this container:
+docker run --rm -it -v <volume-name>:/data alpine sh  : volume will be available in data folder in temporary container (sh - run shell)
+   after inside: ls /data
+   
+-------------------------------- NAMED VOLUME ----------------------------------
+!!! ЕСЛИ создание VOLUME выполняется через docker run, инструкция VOLUME в Dockerfile игнорируется так как имеет меньший приоритет
+docker volume create my-app-volume 
+docker run -p 8082:8082 --name users-ws -e SPRING_PROFILES_ACTIVE=test -v my-app-volume:/app/logs users-ws:2.0.1
+docker volume ls
+docker inspect my-app-volume 
+
+To attach this volume to new container:
+docker run -p 8082:8082 --name users-ws -e SPRING_PROFILES_ACTIVE=test -v my-app-volume:/app/logs users-ws:2.0.1
+docker volume rm <volume-name>
+
+---------------------------- BIND MOUNT --------------------------------------------
+!!! Если некорретно создается путь в bash выполнить перед командой docker: export MSYS2_ARG_CONV_EXCL="*" (временное решение). Постоянное решение: Добавь в файл bash:
+echo 'export MSYS2_ARG_CONV_EXCL="*"' >> ~/.bashrc
+!!! add: --rm if you want to remove a container after stopping
+
+docker run -p 8082:8082 --name users-ws -e SPRING_PROFILES_ACTIVE=test -v "$(pwd)/my-app-logs:/app/logs" users-ws:2.0.1    : bash
+docker run -p 8082:8082 --name users-ws -e SPRING_PROFILES_ACTIVE=test -v "${PWD}\my-app-logs:/app/logs" users-ws:2.0.1    : powerShell-command
+docker run -p 8082:8082 --name users-ws -e SPRING_PROFILES_ACTIVE=test -v ./my-app-logs:/app/logs users-ws:2.0.1
+
+docker run -p 8082:8082 --name users-ws -e SPRING_PROFILES_ACTIVE=test -v ./my-app-logs:/app/logs users-ws:2.0.1
+
+
+---------------------------------- NETWORKS: bridge, host ---------------------------------------
+!!! host.docker.internal — это: DNS-имя, которое ссылается на хост-машину (для того чтобы отбратиться с контейнера на локальный компьютер, используется контейнерами для подключения к сервисам, работающим вне Docker)
+
+docker run --name mysql-docker-container -e MYSQL_DATABASE=photo_app -e MYSQL_ROOT_PASSWORD=sergey -e MYSQL_USER=sergey -e MYSQL_PASSWORD=sergey mysql/mysql-server:latest (default created in bridge network)
+docker inspect mysql-docker-container
+	find: IPAddress to connect to this DB
+	
+docker run --name users-ws -e server.port=8081 -p 8081:8081 -e spring.datasource.username=sergey -e spring.datasource.password=sergey -e spring.datasource.url=jdbc:mysql://host.docker.internal:3306/photo_app -e SPRING_PROFILES_ACTIVE=prod users-ws:2.0.1
+	change to 
+docker run --name users-ws -e server.port=8081 -p 8081:8081 -e spring.datasource.username=sergey -e spring.datasource.password=sergey -e spring.datasource.url=jdbc:mysql://<IPAddress>:3306/photo_app -e SPRING_PROFILES_ACTIVE=prod users-ws:2.0.1    
+
+-------------------------- User defined brige network ----------------------------------------------------------
+docker network create my-net
+docker network ls
+docker network inspect <network-name>
+docker network connect my-net mysql-docker-container  : Connect docker container to network 
+docker inspect mysql-docker-container
+docker network disconnect bridge mysql-docker-container : Disconnect from default (bridge) network
+
+docker run --network my-net --name users-ws \
+ -e server.port=8081 -p 8081:8081 \
+ -e spring.datasource.username=sergey \
+ -e spring.datasource.password=sergey \
+ -e spring.datasource.url=jdbc:mysql://mysql-docker-container:3306/photo_app \
+ users-ws:2.0.1 --spring.profiles.active=prod
+ 
+docker exec users-ws ping -c 4 mysql-docker-container : Ping container from another container in the same network
+docker run --rm --network my-net busybox ping -c 4 mysql-docker-container : run small container ping another in the same network and remove it
+
+---------------------------- Host network (127.0.0.1) ------------------------------
+docker run \
+ -e MYSQL_ROOT_PASSWORD=sergey \
+ -e MYSQL_DATABASE=photo_app \
+ -e MYSQL_USER=sergey \
+ -e MYSQL_PASSWORD=sergey \
+ -p 3306:3306 \
+ --network host \
+mysql:latest
+
+docker run --network host --name users-ws \
+ -e server.port=8081 \
+ -e spring.datasource.username=sergey \
+ -e spring.datasource.password=sergey \
+ -e spring.datasource.url=jdbc:mysql://localhost:3306/photo_app \
+ users-ws:2.0.1 --spring.profiles.active=prod
+ 
+ ------------------------- Connect docker containers on different networks (bridge and host) ----------------------------------
+ !!! host.docker.internal - определение IP адреса локальной машины из docker контейнера
+ 
+ docker run \
+ -e MYSQL_ROOT_PASSWORD=sergey \
+ -e MYSQL_DATABASE=photo_app \
+ -e MYSQL_USER=sergey \
+ -e MYSQL_PASSWORD=sergey \
+ -p 3306:3306 \
+ --network host \
+mysql:latest
+
+docker run --name users-ws \
+ -e server.port=8081 -p 8081:8081 \
+ -e spring.datasource.username=sergey \
+ -e spring.datasource.password=sergey \
+ -e spring.datasource.url=jdbc:mysql://host.docker.internal:3306/photo_app \
+ users-ws:2.0.1 --spring.profiles.active=prod
+
+------------------------- Publish to repository ---------------------------------------------------------------------------------
+Before pushing to repository:
+docker tag <image-id> <repository-name>:<version>
+docker tag 9ec2634af585 4594400/users-ws-public:2.0.1
+docker push 4594400/users-ws-public:2.0.1
+
+docker login --username=4594400
+
+
+docker exec -it <container_id> bash # зайти внутрь контейнера
+docker stop $(docker ps -q)         # stop all containers
+docker container prune 				# remove all stopped containers
+docker image prune --all 			# remove all images not associated with docker containers
+docker system prune -all 			# remove containers, images, networks, clear cache
+
+=========================================================== Docker Compose ========================================================
+
+docker compose -f <file-name> up
+docker-compose up -d   							# запустить с переменными окружения которые находятся в файле .env
+docker-compose --env-file ./myvars.env up -d  	# запустить с переменными окружения которые находятся в файле myvars.env
+
+docker compose down                             # stop all containes and networks
+docker compose down -v                          # stop all containes and remove containes and volumes
+docker compose down -v --rmi local              # stop all containes and remove containes, volumes and images created locally
+docker compose down -v --rmi all                # stop all containes and remove containes, volumes and all images
+
+
+!!! Если в сервисе есть обе секции: image и build, то дефолтное поведение, скачать из репозитория, а если там нет сделать билд image, но этим можно управлять:
+docker-compose up -d   				  # default 
+docker-compose up -d --pull missing   # скачать из репозитория, если нет - сбилдить
+docker-compose up -d --build          # делать build
+
+docker compose build				  # build image, but don't create and start container
+docker compose build --no-cache       # rebuild image ignore cache
+docker compose build --pull 		  # download image from repository
+
+docker compose up --build -d          # build and run container
+docker compose up --pull always	  	  # always download image from repository, build and run
+
+docker compose config 				  			# check config
+docker compose --env-file prod.env config 	    # check config with custom file
+
+docker compose --env-file prod.env up  	  		# run with custom env file
+
+
+
